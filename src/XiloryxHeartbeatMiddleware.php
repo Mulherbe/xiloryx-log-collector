@@ -89,26 +89,31 @@ class XiloryxHeartbeatMiddleware
             return;
         }
 
-        // Lock file exclusively for atomic read-modify-write
+        $countToSend = 0;
+
+        // Lock only for the read-modify-write; never hold it during the network call,
+        // otherwise every other worker blocks in terminate() while the API is slow.
         if (flock($fp, LOCK_EX)) {
-            $currentCount = (int) stream_get_contents($fp);
-            $newCount = $currentCount + 1;
+            $newCount = (int) stream_get_contents($fp) + 1;
 
             if ($newCount >= $threshold) {
-                // Reached threshold: send and reset
-                $this->sendWithCurl($endpoint, $apiKey, $newCount);
+                $countToSend = $newCount;
                 $newCount = 0;
             }
 
-            // Write new count back to file
             rewind($fp);
             ftruncate($fp, 0);
             fwrite($fp, (string) $newCount);
+            fflush($fp);
 
             flock($fp, LOCK_UN);
         }
 
         fclose($fp);
+
+        if ($countToSend > 0) {
+            $this->sendWithCurl($endpoint, $apiKey, $countToSend);
+        }
     }
 
     /**
@@ -138,6 +143,6 @@ class XiloryxHeartbeatMiddleware
         ]);
 
         curl_exec($ch);
-        curl_close($ch);
+        // No curl_close(): it has no effect since PHP 8.0 and is deprecated in 8.5.
     }
 }

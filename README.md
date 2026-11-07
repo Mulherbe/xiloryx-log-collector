@@ -45,7 +45,7 @@ This gives you access to the full config at `config/xiloryx-log.php`.
 All unhandled exceptions are automatically captured and sent to your dashboard — no code changes required. The package hooks into Laravel's exception handler on boot.
 
 Each error includes:
-- Exception message, file, and line
+- Exception class, message, file, and line (messages over 500 characters are truncated; the full text is kept in `context.full_message`)
 - Full stack trace
 - Request URL, method, and IP
 - Authenticated user ID (if available)
@@ -53,22 +53,22 @@ Each error includes:
 
 ### Project Health (premium)
 
-When `XILORYX_LOG_HEARTBEAT=true`, the package tracks your total request count using a local cache buffer. Requests are batched and sent to Xiloryx Log every 100 hits — **zero performance impact** on your app.
+When `XILORYX_LOG_HEARTBEAT=true`, the package counts requests in a small lock-protected file in the system temp directory (no database, no cache). Every 50 requests, the count is sent to Xiloryx Log from the `terminate()` phase, after the response has been sent.
 
 This powers the **Project Health** dashboard: total requests, total errors, and error rate over 30 days.
 
 ## Silent by design
 
-The package will **never** throw an exception or slow down your application:
-- All HTTP calls to Xiloryx Log have a 2-second timeout
+The package will **never** throw an exception in your application:
 - Every failure is caught and silently ignored
 - Heartbeat runs in the `terminate()` phase, after the response is sent
 
+Error reports are sent synchronously when an exception is reported, with a 1-second connect timeout and a 2-second total timeout. If Xiloryx Log is unreachable, a failing request can take up to that long before it completes.
+
 ## Requirements
 
-- PHP 8.1 or higher
-- Laravel 10, 11, or 12
-- Guzzle HTTP client (included with Laravel)
+- PHP 8.1 or higher, with the `curl`, `json` and `mbstring` extensions
+- Laravel 10, 11, 12 or 13
 
 ## Support
 

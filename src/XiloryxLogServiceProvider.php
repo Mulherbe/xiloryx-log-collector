@@ -53,7 +53,7 @@ class XiloryxLogServiceProvider extends ServiceProvider
             $requestKey = request()->header('X-API-KEY');
             $configuredKey = config('xiloryx-log.api_key');
 
-            if (empty($configuredKey) || $requestKey !== $configuredKey) {
+            if (empty($configuredKey) || ! is_string($requestKey) || ! hash_equals((string) $configuredKey, $requestKey)) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'API key mismatch',
@@ -63,11 +63,27 @@ class XiloryxLogServiceProvider extends ServiceProvider
             return response()->json([
                 'status' => 'ok',
                 'package' => 'xiloryx/log-collector',
-                'version' => '1.2.5',
+                'version' => static::packageVersion(),
                 'enabled' => config('xiloryx-log.enabled', false),
                 'heartbeat' => config('xiloryx-log.heartbeat_enabled', false),
             ]);
         });
+    }
+
+    /**
+     * Installed package version, read from Composer metadata.
+     */
+    protected static function packageVersion(): string
+    {
+        try {
+            if (class_exists(\Composer\InstalledVersions::class)) {
+                return \Composer\InstalledVersions::getPrettyVersion('xiloryx/log-collector') ?? 'unknown';
+            }
+        } catch (\Throwable $e) {
+            // Package not registered with Composer (e.g. path install edge cases)
+        }
+
+        return 'unknown';
     }
 
     /**
@@ -87,7 +103,7 @@ class XiloryxLogServiceProvider extends ServiceProvider
 
     /**
      * Auto-wire exception reporting into Laravel's exception handler.
-     * Works on Laravel 10, 11 and 12 — zero config required from the client.
+     * Works on Laravel 10, 11, 12 and 13 — zero config required from the client.
      */
     protected function registerExceptionReporting(): void
     {

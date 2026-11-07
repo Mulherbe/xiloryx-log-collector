@@ -45,7 +45,7 @@ return [
     |
     | Tracks total request count per project. Batches 50 requests before
     | sending to avoid spamming the API. Uses a file-based counter in the
-    | package directory (no DB, no cache dependencies).
+    | system temp directory (no DB, no cache dependencies).
     |
     | Works reliably across multiple PHP-FPM workers using file locking.
     | Runs in terminate phase (non-blocking).
