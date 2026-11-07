@@ -121,6 +121,13 @@ class XiloryxHeartbeatMiddleware
      */
     protected function sendWithCurl(string $endpoint, string $apiKey, int $count): void
     {
+        $breaker = new CircuitBreaker($apiKey);
+
+        // API down or rate-limiting: drop this batch rather than block a worker
+        if ($breaker->isOpen()) {
+            return;
+        }
+
         $ch = curl_init($endpoint);
 
         if ($ch === false) {
@@ -143,6 +150,7 @@ class XiloryxHeartbeatMiddleware
         ]);
 
         curl_exec($ch);
+        $breaker->record($ch);
         // No curl_close(): it has no effect since PHP 8.0 and is deprecated in 8.5.
     }
 }

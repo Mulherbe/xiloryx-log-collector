@@ -56,5 +56,20 @@ return [
 
     'heartbeat_endpoint' => 'https://log.xiloryx.fr/api/heartbeat',
 
+    /*
+    |--------------------------------------------------------------------------
+    | Redacted Query Parameters
+    |--------------------------------------------------------------------------
+    |
+    | Query-string parameters whose values are replaced with [FILTERED] in the
+    | URL sent with each error. Matching is case-insensitive and partial
+    | ("token" also matches "access_token", "reset_token"…).
+    |
+    */
+
+    'redact_query_params' => [
+        'token', 'signature', 'password', 'passwd', 'secret', 'key',
+        'auth', 'code', 'session', 'sig', 'jwt', 'otp',
+    ],
 
 ];

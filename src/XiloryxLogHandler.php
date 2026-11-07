@@ -31,6 +31,11 @@ class XiloryxLogHandler
         }
 
         try {
+            // API down or rate-limiting us: don't make this request pay the timeout
+            if ($this->breaker($apiKey)->isOpen()) {
+                return;
+            }
+
             $payload = [
                 'message' => $this->formatMessage($exception),
                 'file' => $exception->getFile() ?: 'unknown',
@@ -40,7 +45,7 @@ class XiloryxLogHandler
             ];
 
             // Use native cURL instead of Laravel Http to avoid cache/redis dependencies
-            $this->sendWithCurl($endpoint, $apiKey, $payload);
+            $this->dispatch(fn () => $this->sendWithCurl($endpoint, $apiKey, $payload));
 
         } catch (\Throwable $e) {
             // Fail silently - NEVER break the application if monitoring is down
@@ -49,6 +54,36 @@ class XiloryxLogHandler
                 error_log('Xiloryx Log: Failed to report error - ' . $e->getMessage());
             }
         }
+    }
+
+    /**
+     * During an HTTP request, send after the response has been flushed to the
+     * client (terminate phase, after fastcgi_finish_request under PHP-FPM) so
+     * users never wait on the monitoring API. In console/queue workers there
+     * is no response to protect, so send immediately.
+     */
+    protected function dispatch(\Closure $send): void
+    {
+        $app = app();
+
+        if (! $app->runningInConsole() && method_exists($app, 'terminating')) {
+            $app->terminating(function () use ($send) {
+                try {
+                    $send();
+                } catch (\Throwable $e) {
+                    // never break the application
+                }
+            });
+
+            return;
+        }
+
+        $send();
+    }
+
+    protected function breaker(string $apiKey): CircuitBreaker
+    {
+        return new CircuitBreaker($apiKey);
     }
 
     /**
@@ -101,6 +136,8 @@ class XiloryxLogHandler
             return; // cURL init failed, fail silently
         }
 
+        $headers = '';
+
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
             CURLOPT_RETURNTRANSFER => true,
@@ -114,10 +151,46 @@ class XiloryxLogHandler
             CURLOPT_POSTFIELDS => $body,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_HEADERFUNCTION => function ($ch, string $line) use (&$headers) {
+                $headers .= $line;
+
+                return strlen($line);
+            },
         ]);
 
         curl_exec($ch);
+        $this->breaker($apiKey)->record($ch, $headers);
         // No curl_close(): it has no effect since PHP 8.0 and is deprecated in 8.5.
+    }
+
+    /**
+     * Mask sensitive query-string values (reset tokens, signed URL
+     * signatures, API keys…) before the URL leaves the application.
+     */
+    protected function redactUrl(string $url): string
+    {
+        $query = parse_url($url, PHP_URL_QUERY);
+
+        if (! is_string($query) || $query === '') {
+            return $url;
+        }
+
+        $sensitive = array_map('strtolower', (array) config('xiloryx-log.redact_query_params', []));
+
+        $parts = array_map(function (string $pair) use ($sensitive) {
+            [$key] = explode('=', $pair, 2);
+            $name = strtolower(urldecode($key)); // includes nested keys: user[api_key]
+
+            foreach ($sensitive as $needle) {
+                if ($needle !== '' && str_contains($name, $needle)) {
+                    return $key . '=[FILTERED]';
+                }
+            }
+
+            return $pair;
+        }, explode('&', $query));
+
+        return str_replace('?' . $query, '?' . implode('&', $parts), $url);
     }
 
     /**
@@ -139,7 +212,7 @@ class XiloryxLogHandler
         // Add request information if available
         if (app()->bound('request')) {
             $request = request();
-            $context['url'] = $request->fullUrl();
+            $context['url'] = $this->redactUrl($request->fullUrl());
             $context['method'] = $request->method();
             $context['ip'] = $request->ip();
             

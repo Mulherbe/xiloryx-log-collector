@@ -47,7 +47,7 @@ All unhandled exceptions are automatically captured and sent to your dashboard �
 Each error includes:
 - Exception class, message, file, and line (messages over 500 characters are truncated; the full text is kept in `context.full_message`)
 - Full stack trace
-- Request URL, method, and IP
+- Request URL, method, and IP — sensitive query-string values (`token`, `signature`, `password`, `key`, `code`…) are replaced with `[FILTERED]`; adjust the list with `redact_query_params` in the config
 - Authenticated user ID (if available)
 - PHP version and environment
 
@@ -63,7 +63,11 @@ The package will **never** throw an exception in your application:
 - Every failure is caught and silently ignored
 - Heartbeat runs in the `terminate()` phase, after the response is sent
 
-Error reports are sent synchronously when an exception is reported, with a 1-second connect timeout and a 2-second total timeout. If Xiloryx Log is unreachable, a failing request can take up to that long before it completes.
+- During HTTP requests, error reports are sent in the `terminate()` phase too, after the response has been sent, so users never wait on the monitoring API
+- In console commands and queue workers, reports are sent immediately (1-second connect timeout, 2-second total timeout)
+- If Xiloryx Log is down, errors out or rate-limits you (HTTP 429), the package stops sending for a cooldown (60 seconds, or the API's `Retry-After`, up to 10 minutes), shared by all workers through a small file in the system temp directory. Only the first failing call pays the timeout.
+
+Note: exception messages are sent as-is. SQL errors include the bound values of the failing query.
 
 ## Requirements
 

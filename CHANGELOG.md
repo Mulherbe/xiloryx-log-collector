@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.5.0] - 2026-11-07
+
+### Added
+- Circuit breaker: when the API times out, returns 5xx or 429, error reports and heartbeats are skipped for a cooldown (60 s, or `Retry-After`, max 10 min) shared across workers via a temp file. A down monitoring server no longer adds up to 3 s to every failing request.
+- New `redact_query_params` config option: sensitive query-string values (tokens, signatures, passwords, keys, codes…) are replaced with `[FILTERED]` in `context.url`.
+
+### Changed
+- During HTTP requests, error reports are now sent in the terminate phase, after the response has been flushed to the client. Console commands and queue workers still send immediately.
+
 ## [1.4.0] - 2026-11-07
 
 ### Fixed
