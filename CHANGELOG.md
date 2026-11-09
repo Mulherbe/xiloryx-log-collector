@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.0] - 2026-11-10
+
+### Added
+- Each error now carries the version of the site as `context.release`: `XILORYX_LOG_RELEASE` when set, otherwise the short git commit of the deployed code (read from `.git`, once per process, no shell command), otherwise nothing. Log shows the version in which an error first appeared and the last one it was seen in. Same endpoint and payload shape (`context` was already free-form).
+- `tests/release-test.php`: setting, branch, packed ref, detached HEAD, unreadable `.git`.
+
 ## [1.5.2] - 2026-11-09
 
 ### Fixed

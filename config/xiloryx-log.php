@@ -40,6 +40,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Release (version of the site)
+    |--------------------------------------------------------------------------
+    |
+    | Sent with each error as context.release: Log shows the version in which
+    | an error first appeared. Empty = the short git commit of the deployed
+    | code, read from .git when it is there.
+    |
+    */
+
+    'release' => env('XILORYX_LOG_RELEASE'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Heartbeat (Project Health)
     |--------------------------------------------------------------------------
     |

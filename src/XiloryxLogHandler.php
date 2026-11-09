@@ -252,6 +252,12 @@ class XiloryxLogHandler
             'php_version' => PHP_VERSION,
         ];
 
+        // Version of the site: Log keeps the one in which the error first appeared
+        $release = $this->release();
+        if ($release !== null) {
+            $context['release'] = $release;
+        }
+
         // Keep the untruncated message when it was shortened for the API
         $message = $this->messageOf($exception);
         if (mb_strlen($message) > static::MAX_MESSAGE_LENGTH) {
@@ -272,5 +278,62 @@ class XiloryxLogHandler
         }
 
         return $context;
+    }
+
+    /** Release detected from git, read once per process (null = not found). */
+    protected static ?string $gitRelease = null;
+
+    protected static bool $gitReleaseRead = false;
+
+    /**
+     * Version of the site sent as `context.release`: XILORYX_LOG_RELEASE when set,
+     * otherwise the short git commit of the deployed code (read from .git, no shell),
+     * otherwise nothing.
+     */
+    protected function release(): ?string
+    {
+        $configured = config('xiloryx-log.release');
+        if (is_string($configured) && trim($configured) !== '') {
+            return mb_substr(trim($configured), 0, 64);
+        }
+
+        if (! static::$gitReleaseRead) {
+            static::$gitReleaseRead = true;
+            static::$gitRelease = function_exists('base_path') ? static::gitCommit(base_path('.git')) : null;
+        }
+
+        return static::$gitRelease;
+    }
+
+    /**
+     * Short commit of the checked-out code, or null. Handles a branch (loose or packed ref)
+     * and a detached HEAD. Never throws.
+     */
+    public static function gitCommit(string $gitDir): ?string
+    {
+        try {
+            $head = @file_get_contents($gitDir . '/HEAD');
+            if (! is_string($head)) {
+                return null;
+            }
+            $head = trim($head);
+
+            if (str_starts_with($head, 'ref: ')) {
+                $ref = substr($head, 5);
+                $sha = @file_get_contents($gitDir . '/' . $ref);
+                if (! is_string($sha)) {
+                    $packed = @file_get_contents($gitDir . '/packed-refs');
+                    $sha = null;
+                    if (is_string($packed) && preg_match('/^([0-9a-f]{40}) ' . preg_quote($ref, '/') . '$/m', $packed, $m)) {
+                        $sha = $m[1];
+                    }
+                }
+                $head = trim((string) $sha);
+            }
+
+            return preg_match('/^[0-9a-f]{40}$/', $head) ? substr($head, 0, 7) : null;
+        } catch (Throwable) {
+            return null;
+        }
     }
 }
