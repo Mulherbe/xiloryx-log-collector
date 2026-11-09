@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- SQL errors sent the values of the failing query (emails, tokens, personal data) and the database host: Laravel's `QueryException` message embeds them. The message is now rebuilt from the driver message and the SQL with its `?` placeholders; values quoted by PostgreSQL/MySQL (duplicate key, failing row, invalid input) are masked. Same for `context.full_message`.
+
+### Added
+- `tests/sql-values-test.php` (needs `composer install`: `illuminate/database` is a dev dependency).
+
 ## [1.5.1] - 2026-11-09
 
 ### Changed

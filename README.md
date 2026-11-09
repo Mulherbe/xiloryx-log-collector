@@ -55,7 +55,7 @@ Each error includes:
 
 When `XILORYX_LOG_HEARTBEAT=true`, the package counts requests in a small lock-protected file in the system temp directory (no database, no cache). The count is sent to Xiloryx Log every 50 requests, or on the first request once an hour has passed since the last send (so quiet sites still show up every day), from the `terminate()` phase, after the response has been sent.
 
-Run the package tests with `php tests/heartbeat-test.php` (plain PHP, no dependency).
+Run the package tests with `php tests/heartbeat-test.php` (plain PHP, no dependency) and, after `composer install`, `php tests/sql-values-test.php`.
 
 This powers the **Project Health** dashboard: total requests, total errors, and error rate over 30 days.
 
@@ -69,7 +69,7 @@ The package will **never** throw an exception in your application:
 - In console commands and queue workers, reports are sent immediately (1-second connect timeout, 2-second total timeout)
 - If Xiloryx Log is down, errors out or rate-limits you (HTTP 429), the package stops sending for a cooldown (60 seconds, or the API's `Retry-After`, up to 10 minutes), shared by all workers through a small file in the system temp directory. Only the first failing call pays the timeout.
 
-Note: exception messages are sent as-is. SQL errors include the bound values of the failing query.
+SQL errors (`QueryException`) are sent without the values of the query: the SQL keeps its `?` placeholders, the database host is left out, and values quoted by PostgreSQL or MySQL in their message (duplicate key, failing row, invalid input) are replaced with `?`. Other exception messages are sent as-is.
 
 ## Requirements
 

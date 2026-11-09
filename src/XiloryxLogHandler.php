@@ -93,7 +93,7 @@ class XiloryxLogHandler
      */
     protected function formatMessage(Throwable $exception): string
     {
-        $message = trim($exception->getMessage());
+        $message = trim($this->messageOf($exception));
 
         if ($message === '') {
             return get_class($exception);
@@ -104,6 +104,46 @@ class XiloryxLogHandler
         }
 
         return $message;
+    }
+
+    /**
+     * The exception message, without the values of SQL queries.
+     *
+     * Laravel's QueryException message embeds the bound values (emails, tokens,
+     * personal data…) in the SQL, plus the database host. It is rebuilt from
+     * the driver message and the SQL with its "?" placeholders. Values that the
+     * database itself quotes in its message (duplicate key, invalid input…)
+     * are masked too.
+     */
+    protected function messageOf(Throwable $exception): string
+    {
+        if (! $exception instanceof \Illuminate\Database\QueryException) {
+            return $exception->getMessage();
+        }
+
+        $previous = $exception->getPrevious();
+        $driverMessage = $previous ? $this->maskDriverValues($previous->getMessage()) : '';
+
+        return trim($driverMessage . ' (Connection: ' . $exception->getConnectionName() . ', SQL: ' . $exception->getSql() . ')');
+    }
+
+    /**
+     * Mask the values PostgreSQL and MySQL quote in their error messages.
+     */
+    protected function maskDriverValues(string $message): string
+    {
+        $patterns = [
+            // PostgreSQL: Key (email)=(a@b.c) already exists / is not present in table…
+            '/(Key \([^)]*\)=)\(.*?\)(?= (?:already exists|is not present|conflicts with|is still referenced))/s' => '$1(?)',
+            // PostgreSQL: Failing row contains (1, a@b.c, …).
+            '/(Failing row contains )\(.*\)/' => '$1(?)',
+            // PostgreSQL: invalid input syntax for type integer: "abc"
+            '/(invalid input (?:syntax|value) for [^:\n]*: )".*?"/' => '$1"?"',
+            // MySQL: Duplicate entry 'a@b.c' for key …, Incorrect integer value: 'abc' for column …
+            "/(Duplicate entry |value: )'.*?'(?= for )/s" => "\$1'?'",
+        ];
+
+        return preg_replace(array_keys($patterns), array_values($patterns), $message) ?? $message;
     }
 
     /**
@@ -205,8 +245,9 @@ class XiloryxLogHandler
         ];
 
         // Keep the untruncated message when it was shortened for the API
-        if (mb_strlen($exception->getMessage()) > static::MAX_MESSAGE_LENGTH) {
-            $context['full_message'] = $exception->getMessage();
+        $message = $this->messageOf($exception);
+        if (mb_strlen($message) > static::MAX_MESSAGE_LENGTH) {
+            $context['full_message'] = $message;
         }
 
         // Add request information if available
