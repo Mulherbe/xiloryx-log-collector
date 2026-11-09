@@ -45,7 +45,15 @@ class XiloryxLogHandler
             ];
 
             // Use native cURL instead of Laravel Http to avoid cache/redis dependencies
-            $this->dispatch(fn () => $this->sendWithCurl($endpoint, $apiKey, $payload));
+            $send = fn () => $this->sendWithCurl($endpoint, $apiKey, $payload);
+
+            // A fatal error is reported from PHP's shutdown, once the process is
+            // already dying: the terminate phase will never come, send now.
+            if ($exception instanceof \Symfony\Component\ErrorHandler\Error\FatalError) {
+                $send();
+            } else {
+                $this->dispatch($send);
+            }
 
         } catch (\Throwable $e) {
             // Fail silently - NEVER break the application if monitoring is down

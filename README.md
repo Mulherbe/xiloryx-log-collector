@@ -55,7 +55,7 @@ Each error includes:
 
 When `XILORYX_LOG_HEARTBEAT=true`, the package counts requests in a small lock-protected file in the system temp directory (no database, no cache). The count is sent to Xiloryx Log every 50 requests, or on the first request once an hour has passed since the last send (so quiet sites still show up every day), from the `terminate()` phase, after the response has been sent.
 
-Run the package tests with `php tests/heartbeat-test.php` (plain PHP, no dependency) and, after `composer install`, `php tests/sql-values-test.php`.
+Run the package tests with `php tests/heartbeat-test.php` (plain PHP, no dependency) and, after `composer install`, `php tests/sql-values-test.php` and `php tests/fatal-error-test.php`.
 
 This powers the **Project Health** dashboard: total requests, total errors, and error rate over 30 days.
 
@@ -65,7 +65,7 @@ The package will **never** throw an exception in your application:
 - Every failure is caught and silently ignored
 - Heartbeat runs in the `terminate()` phase, after the response is sent
 
-- During HTTP requests, error reports are sent in the `terminate()` phase too, after the response has been sent, so users never wait on the monitoring API
+- During HTTP requests, error reports are sent in the `terminate()` phase too, after the response has been sent, so users never wait on the monitoring API. Fatal errors (memory exhausted, timeout…) are the exception: the process is dying and never reaches that phase, so they are sent right away
 - In console commands and queue workers, reports are sent immediately (1-second connect timeout, 2-second total timeout)
 - If Xiloryx Log is down, errors out or rate-limits you (HTTP 429), the package stops sending for a cooldown (60 seconds, or the API's `Retry-After`, up to 10 minutes), shared by all workers through a small file in the system temp directory. Only the first failing call pays the timeout.
 
