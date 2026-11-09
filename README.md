@@ -37,6 +37,7 @@ This gives you access to the full config at `config/xiloryx-log.php`.
 | `XILORYX_LOG_API_KEY` | `null` | **Required.** Your project API key |
 | `XILORYX_LOG_ENABLED` | `true` | Enable/disable error reporting |
 | `XILORYX_LOG_HEARTBEAT` | `false` | Enable request counting (premium) |
+| `XILORYX_LOG_RELEASE` | short git commit, if `.git` is there | Version of the site sent with each error (Log shows the version in which an error first appeared) |
 
 ## Features
 
