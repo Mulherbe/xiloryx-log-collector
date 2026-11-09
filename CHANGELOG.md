@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.1] - 2026-11-09
+
+### Changed
+- Heartbeat: the request count is also sent on the first request once an hour has passed since the last send, not only every 50 requests. Quiet sites kept their count for days and lost it on every redeploy (the counter lives in the container's temp directory); now at most an hour of counts can be lost. Same endpoint and payload. Counter files written by older versions are read as-is.
+
+### Added
+- `tests/heartbeat-test.php`: plain-PHP tests of the heartbeat counter (batches, hourly send, old counter files).
+
 ## [1.5.0] - 2026-11-07
 
 ### Added

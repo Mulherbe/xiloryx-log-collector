@@ -69,16 +69,23 @@ class XiloryxHeartbeatMiddleware
         return false;
     }
 
+    /** Send as soon as this many requests are counted */
+    protected const BATCH_SIZE = 50;
+
+    /** ...or on the first request once this many seconds have passed since the last send */
+    protected const MAX_INTERVAL = 3600;
+
     /**
-     * Increment counter in /tmp and send batch when threshold is reached.
+     * Increment counter in /tmp and send when the batch is full or the last send is over an hour old.
+     * Without the time limit, a quiet site could keep its count for days (and lose it on redeploy).
      * Uses file locking to work reliably across multiple PHP-FPM workers.
      * Stored in /tmp (always writable) with API key hash to avoid conflicts.
+     * File content: "<count> <unix time of last send>" (a bare "<count>" from older versions is accepted).
      */
     protected function incrementAndMaybeSend(string $endpoint, string $apiKey): void
     {
         // Counter file in /tmp — always writable, unique per project via API key hash
-        $counterFile = sys_get_temp_dir() . '/xiloryx_hb_' . md5($apiKey) . '.count';
-        $threshold = 50; // Send every 50 requests
+        $counterFile = $this->counterFile($apiKey);
 
         // Open file for reading and writing, create if doesn't exist
         $fp = @fopen($counterFile, 'c+');
@@ -94,16 +101,21 @@ class XiloryxHeartbeatMiddleware
         // Lock only for the read-modify-write; never hold it during the network call,
         // otherwise every other worker blocks in terminate() while the API is slow.
         if (flock($fp, LOCK_EX)) {
-            $newCount = (int) stream_get_contents($fp) + 1;
+            $now = $this->now();
+            $parts = explode(' ', trim((string) stream_get_contents($fp)));
+            $newCount = (int) $parts[0] + 1;
+            // No time yet (new file or older version): start the clock now
+            $lastSent = isset($parts[1]) ? (int) $parts[1] : $now;
 
-            if ($newCount >= $threshold) {
+            if ($newCount >= static::BATCH_SIZE || $now - $lastSent >= static::MAX_INTERVAL) {
                 $countToSend = $newCount;
                 $newCount = 0;
+                $lastSent = $now;
             }
 
             rewind($fp);
             ftruncate($fp, 0);
-            fwrite($fp, (string) $newCount);
+            fwrite($fp, $newCount . ' ' . $lastSent);
             fflush($fp);
 
             flock($fp, LOCK_UN);
@@ -114,6 +126,16 @@ class XiloryxHeartbeatMiddleware
         if ($countToSend > 0) {
             $this->sendWithCurl($endpoint, $apiKey, $countToSend);
         }
+    }
+
+    protected function counterFile(string $apiKey): string
+    {
+        return sys_get_temp_dir() . '/xiloryx_hb_' . md5($apiKey) . '.count';
+    }
+
+    protected function now(): int
+    {
+        return time();
     }
 
     /**

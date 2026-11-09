@@ -53,7 +53,9 @@ Each error includes:
 
 ### Project Health (premium)
 
-When `XILORYX_LOG_HEARTBEAT=true`, the package counts requests in a small lock-protected file in the system temp directory (no database, no cache). Every 50 requests, the count is sent to Xiloryx Log from the `terminate()` phase, after the response has been sent.
+When `XILORYX_LOG_HEARTBEAT=true`, the package counts requests in a small lock-protected file in the system temp directory (no database, no cache). The count is sent to Xiloryx Log every 50 requests, or on the first request once an hour has passed since the last send (so quiet sites still show up every day), from the `terminate()` phase, after the response has been sent.
+
+Run the package tests with `php tests/heartbeat-test.php` (plain PHP, no dependency).
 
 This powers the **Project Health** dashboard: total requests, total errors, and error rate over 30 days.
 
