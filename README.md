@@ -60,6 +60,14 @@ Run the package tests with `php tests/heartbeat-test.php` (plain PHP, no depende
 
 This powers the **Project Health** dashboard: total requests, total errors, and error rate over 30 days.
 
+### Mark an error as fixed (1.7+)
+
+```bash
+php artisan xiloryx-log:resolve 203 "Fixed in 09a4caf"
+```
+
+Only this project's errors, only "fixed" (if it happens again, Log reopens it). The API key is never shown.
+
 ## Silent by design
 
 The package will **never** throw an exception in your application:

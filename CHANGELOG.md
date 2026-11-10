@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.7.0] - 2026-11-10
+
+### Added
+- `php artisan xiloryx-log:resolve <id> "note"`: marks one of the project's errors as fixed on Xiloryx Log (`POST /api/errors/{id}/resolve`, needs Log `0c63cd7` or later). Uses the configured server key, which is never printed. Only "fixed": an ignored error is refused (409), an error of another project answers 404, and an error that comes back is reopened by Log. Optional note (1000 characters max) kept in the error's history.
+- `tests/resolve-test.php`: a local PHP server plays Log (URL, key header, note, every answer, no server).
+
+### Changed
+- `illuminate/console` is now required (any Laravel app already has it).
+
 ## [1.6.0] - 2026-11-10
 
 ### Added

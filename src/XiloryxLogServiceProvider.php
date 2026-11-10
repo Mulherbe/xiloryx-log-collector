@@ -32,6 +32,10 @@ class XiloryxLogServiceProvider extends ServiceProvider
             __DIR__ . '/../config/xiloryx-log.php' => config_path('xiloryx-log.php'),
         ], 'xiloryx-log-config');
 
+        if ($this->app->runningInConsole()) {
+            $this->commands([ResolveErrorCommand::class]);
+        }
+
         $this->registerRoutes();
         $this->registerHeartbeatMiddleware();
         $this->registerExceptionReporting();
