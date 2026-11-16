@@ -108,6 +108,13 @@ check('maskIp: IPv4', XiloryxHeartbeatMiddleware::maskIp('203.0.113.57') === '20
 check('maskIp: IPv6', XiloryxHeartbeatMiddleware::maskIp('2001:db8:85a3:1:2:3:4:5') === '2001:db8:85a3::');
 check('maskIp: garbage', XiloryxHeartbeatMiddleware::maskIp('nope') === null && XiloryxHeartbeatMiddleware::maskIp(null) === null);
 
+// 6. Environment (1.9.0): sent when known, cleaned, left out otherwise (Log then assumes production)
+check('payload: count only, as before', XiloryxHeartbeatMiddleware::payload(50) === ['count' => 50]);
+check('payload: with lines and environment', XiloryxHeartbeatMiddleware::payload(2, [['a' => 1]], ' Staging ')
+    === ['count' => 2, 'requests' => [['a' => 1]], 'environment' => 'staging']);
+check('payload: odd environment left out', XiloryxHeartbeatMiddleware::payload(1, [], 'prod; drop table') === ['count' => 1]
+    && XiloryxHeartbeatMiddleware::payload(1, [], '') === ['count' => 1]);
+
 @unlink($hb->file());
 @unlink($hb->file() . '.lines');
 echo $failures === 0 ? "All passed\n" : "$failures failed\n";

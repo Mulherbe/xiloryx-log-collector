@@ -228,6 +228,50 @@ class XiloryxHeartbeatMiddleware
     }
 
     /**
+     * Body of a heartbeat (1.9.0: + environment, so Log can show the production and a test site
+     * sharing a key apart). Older Log versions ignore the extra field.
+     *
+     * @param  array<int, array<string, mixed>>  $lines
+     * @return array<string, mixed>
+     */
+    public static function payload(int $count, array $lines = [], ?string $environment = null): array
+    {
+        $body = ['count' => $count];
+        if ($lines) {
+            $body['requests'] = $lines;
+        }
+        $environment = static::cleanEnvironment($environment);
+        if ($environment !== null) {
+            $body['environment'] = $environment;
+        }
+
+        return $body;
+    }
+
+    /** "Production", " staging " -> production, staging; anything odd -> null (Log then assumes production) */
+    public static function cleanEnvironment(?string $environment): ?string
+    {
+        $environment = strtolower(trim((string) $environment));
+
+        return preg_match('/^[a-z0-9_-]{1,20}$/', $environment) ? $environment : null;
+    }
+
+    /** XILORYX_LOG_ENVIRONMENT when set, otherwise the app environment (APP_ENV) */
+    protected function environment(): ?string
+    {
+        if (!function_exists('config')) {
+            return null;
+        }
+        try {
+            $value = config('xiloryx-log.environment') ?: config('app.env');
+
+            return is_string($value) ? $value : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
      * Send heartbeat data using native cURL (no Laravel dependencies).
      */
     protected function sendWithCurl(string $endpoint, string $apiKey, int $count, array $lines = []): void
@@ -255,7 +299,7 @@ class XiloryxHeartbeatMiddleware
                 'Accept: application/json',
                 'Content-Type: application/json',
             ],
-            CURLOPT_POSTFIELDS => json_encode($lines ? ['count' => $count, 'requests' => $lines] : ['count' => $count]),
+            CURLOPT_POSTFIELDS => json_encode(static::payload($count, $lines, $this->environment())),
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
         ]);

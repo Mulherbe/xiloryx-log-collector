@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.9.0] - 2026-11-16
+
+### Added
+- The heartbeat carries the site's environment (`"environment": "staging"`), so Log shows a test site apart from the production when both share a key (« Marie Colibri · test »), and the requests page shows the production by default. Value: `XILORYX_LOG_ENVIRONMENT` when set, otherwise `APP_ENV`; lowercased, letters, digits, `-` and `_` only (20 max), left out otherwise. Older Log versions ignore the field; Log treats a heartbeat without it as production. Nothing to change in the app: `composer update xiloryx/log-collector` is enough.
+
 ## [1.8.0] - 2026-11-16
 
 ### Added

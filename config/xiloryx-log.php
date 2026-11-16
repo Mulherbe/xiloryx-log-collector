@@ -77,6 +77,12 @@ return [
     'request_detail' => env('XILORYX_LOG_REQUEST_DETAIL', true),
 
     /*
+    | Environment sent with the heartbeat (1.9.0): Log shows a test site apart from the production
+    | when both share a key. Defaults to APP_ENV (production, staging, local...).
+    */
+    'environment' => env('XILORYX_LOG_ENVIRONMENT'),
+
+    /*
     |--------------------------------------------------------------------------
     | Redacted Query Parameters
     |--------------------------------------------------------------------------
