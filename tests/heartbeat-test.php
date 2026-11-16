@@ -100,6 +100,9 @@ check('detail: a hit without line (detail off) adds no line', !file_exists($hb->
 // 5. Nothing private leaves the app
 check('cleanPath: ids, uuid, token, e-mail', XiloryxHeartbeatMiddleware::cleanPath('/users/1234/reset/someone@example.com/550e8400-e29b-41d4-a716-446655440000/abcdef1234567890abcdef/edit')
     === 'users/{id}/reset/{id}/{id}/{id}/edit');
+check('cleanPath: JWT', XiloryxHeartbeatMiddleware::cleanPath('auth/eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.abc') === 'auth/{id}');
+check('unmatchedPath: only the first segment', XiloryxHeartbeatMiddleware::unmatchedPath('users/jean-dupont/edit') === 'users/{…}'
+    && XiloryxHeartbeatMiddleware::unmatchedPath('wp-login.php') === 'wp-login.php');
 check('cleanPath: words kept', XiloryxHeartbeatMiddleware::cleanPath('api/products/search') === 'api/products/search');
 check('maskIp: IPv4', XiloryxHeartbeatMiddleware::maskIp('203.0.113.57') === '203.0.113.0');
 check('maskIp: IPv6', XiloryxHeartbeatMiddleware::maskIp('2001:db8:85a3:1:2:3:4:5') === '2001:db8:85a3::');

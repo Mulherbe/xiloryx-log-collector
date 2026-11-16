@@ -80,7 +80,7 @@ class XiloryxHeartbeatMiddleware
     protected function requestLine(Request $request, Response $response): array
     {
         $route = $request->route();
-        $uri = is_object($route) && method_exists($route, 'uri') ? (string) $route->uri() : static::cleanPath($request->path());
+        $uri = is_object($route) && method_exists($route, 'uri') ? (string) $route->uri() : static::unmatchedPath($request->path());
         $start = defined('LARAVEL_START') ? (float) LARAVEL_START : (float) $request->server('REQUEST_TIME_FLOAT', microtime(true));
         $ua = (string) $request->userAgent();
 
@@ -95,6 +95,17 @@ class XiloryxHeartbeatMiddleware
         ];
     }
 
+    /**
+     * No Laravel route matched (404, scanners): only the first segment is kept, the rest could be
+     * a name or a token (`users/jean-dupont` -> `users/{…}`).
+     */
+    public static function unmatchedPath(string $path): string
+    {
+        $segments = explode('/', static::cleanPath($path));
+
+        return $segments[0] . (count($segments) > 1 ? '/{…}' : '');
+    }
+
     /** Path segments that look like an id, a UUID, a token or an e-mail become {id} */
     public static function cleanPath(string $path): string
     {
@@ -102,6 +113,7 @@ class XiloryxHeartbeatMiddleware
             $private = preg_match('/^\d+$/', $segment)
                 || preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $segment)
                 || (preg_match('/^[0-9a-z_-]{20,}$/i', $segment) && preg_match('/\d/', $segment))
+                || strlen($segment) >= 24
                 || str_contains($segment, '@')
                 || str_contains($segment, '%40');
 
