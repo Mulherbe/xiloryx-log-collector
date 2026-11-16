@@ -70,6 +70,13 @@ return [
     'heartbeat_endpoint' => 'https://log.xiloryx.fr/api/heartbeat',
 
     /*
+    | Request detail (1.8.0): with the count, one line per request (method, route pattern, status,
+    | duration, IP ending in .0, user agent), shown on the "Requêtes" page of Log for 7 days.
+    | Never the query string nor the full IP. Set to false to send only the count.
+    */
+    'request_detail' => env('XILORYX_LOG_REQUEST_DETAIL', true),
+
+    /*
     |--------------------------------------------------------------------------
     | Redacted Query Parameters
     |--------------------------------------------------------------------------

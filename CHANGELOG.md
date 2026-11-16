@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.8.0] - 2026-11-16
+
+### Added
+- Request detail: with the heartbeat count, one line per request (method, route, status, duration, masked IP, user agent, time), shown on the « Requêtes » page of Xiloryx Log for 7 days. Needs Log `4c44679` or later (older Log versions ignore the extra field and keep counting). Nothing private leaves the app: the route is Laravel's pattern (`products/{product}`), or the path with ids, UUIDs, tokens and e-mails replaced by `{id}` when no route matched; never the query string; IPv4 ends in `.0`, IPv6 keeps its first 3 groups; user agent cut to 255 characters. Lines wait in a file next to the counter (same lock, at most 500) and go with the next count. `XILORYX_LOG_REQUEST_DETAIL=false` sends the count only, as before.
+
 ## [1.7.0] - 2026-11-10
 
 ### Added

@@ -16,9 +16,12 @@ final class FakeClockHeartbeat extends XiloryxHeartbeatMiddleware
     /** @var int[] counts that would have been sent */
     public array $sent = [];
 
-    public function hit(): void
+    /** @var array<int, array<int, array<string, mixed>>> request lines sent with each count */
+    public array $sentLines = [];
+
+    public function hit(?array $line = null): void
     {
-        $this->incrementAndMaybeSend('https://example.invalid/api/heartbeat', 'test-key-' . getmypid());
+        $this->incrementAndMaybeSend('https://example.invalid/api/heartbeat', 'test-key-' . getmypid(), $line);
     }
 
     public function file(): string
@@ -31,9 +34,10 @@ final class FakeClockHeartbeat extends XiloryxHeartbeatMiddleware
         return $this->clock;
     }
 
-    protected function sendWithCurl(string $endpoint, string $apiKey, int $count): void
+    protected function sendWithCurl(string $endpoint, string $apiKey, int $count, array $lines = []): void
     {
         $this->sent[] = $count;
+        $this->sentLines[] = $lines;
     }
 }
 
@@ -81,6 +85,27 @@ $hb->clock += 3600;
 $hb->hit();
 check('old file: 14 sent an hour later', $hb->sent === [14]);
 
+// 4. Request detail (1.8.0): the lines go with the count, then the buffer is empty
+$hb = fresh();
+@unlink($hb->file() . '.lines');
+for ($i = 0; $i < 50; $i++) {
+    $hb->hit(['method' => 'GET', 'route' => '/products/{id}', 'status' => 200, 'n' => $i]);
+}
+check('detail: 50 lines sent with the count of 50', $hb->sent === [50] && count($hb->sentLines[0]) === 50
+    && $hb->sentLines[0][49]['n'] === 49);
+check('detail: buffer emptied after the send', !file_exists($hb->file() . '.lines'));
+$hb->hit();
+check('detail: a hit without line (detail off) adds no line', !file_exists($hb->file() . '.lines'));
+
+// 5. Nothing private leaves the app
+check('cleanPath: ids, uuid, token, e-mail', XiloryxHeartbeatMiddleware::cleanPath('/users/1234/reset/someone@example.com/550e8400-e29b-41d4-a716-446655440000/abcdef1234567890abcdef/edit')
+    === 'users/{id}/reset/{id}/{id}/{id}/edit');
+check('cleanPath: words kept', XiloryxHeartbeatMiddleware::cleanPath('api/products/search') === 'api/products/search');
+check('maskIp: IPv4', XiloryxHeartbeatMiddleware::maskIp('203.0.113.57') === '203.0.113.0');
+check('maskIp: IPv6', XiloryxHeartbeatMiddleware::maskIp('2001:db8:85a3:1:2:3:4:5') === '2001:db8:85a3::');
+check('maskIp: garbage', XiloryxHeartbeatMiddleware::maskIp('nope') === null && XiloryxHeartbeatMiddleware::maskIp(null) === null);
+
 @unlink($hb->file());
+@unlink($hb->file() . '.lines');
 echo $failures === 0 ? "All passed\n" : "$failures failed\n";
 exit($failures === 0 ? 0 : 1);
